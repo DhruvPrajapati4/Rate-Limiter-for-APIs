@@ -42,9 +42,9 @@ To run this application, you will need the following installed on your machine:
 
 1. Clone the Git repository to your local machine: git clone https://github.com/DhruvPrajapati4/Rate-limiter-for-APIs.git
 
-2. Navigate to the project directory: cd src
+2. Setup the MySQL database using the DDL.sql file
 
-3. Setup the MySQL database using the DDL.sql file
+3. Navigate to the project directory: cd src
 
 4. Create/Modify the `application.properties` file in the `src/main/resources` directory and configure the MySQL database connection settings according to your local environment.
 
