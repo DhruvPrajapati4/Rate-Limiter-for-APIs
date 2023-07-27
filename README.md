@@ -60,10 +60,10 @@ Once the application is running, you can use any API testing tool (e.g., Postman
 
 The application provides the following API endpoints:
 
-1. GET `/api-alpha`: Sample API to be rate-limited for a user.
-2. POST `/api-beta`: Sample API to be rate-limited for a user.
+1. GET `/api-alpha/{userId}`: Sample API to be rate-limited for a user.
+2. POST `/api-beta/{userId}`: Sample API to be rate-limited for a user.
 3. PUT `/api-gamma/{userId}`: Sample API to be rate-limited for a user with a specific `userId`.
-4. DELETE `/api-delta`: Sample API to be rate-limited for a user.
+4. DELETE `/api-delta/{userId}`: Sample API to be rate-limited for a user.
 
 All API endpoints accept a query parameter `userId` of type `long` to identify the user.
 
