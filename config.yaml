@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+
+rate_limit:
+  algorithm: "token_bucket" # or "sliding_window"
+  tiers:
+    api_specific:
+      limit: 100
+      window: 60s
+      burst_size: 120
+      refill_rate: 100
+    global_user:
+      limit: 500
+      window: 60s
+      burst_size: 600
+      refill_rate: 500
+    global_api:
+      limit: 10000
+      window: 1s
+      burst_size: 12000
+      refill_rate: 10000
