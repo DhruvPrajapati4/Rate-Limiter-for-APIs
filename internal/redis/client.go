@@ -12,10 +12,12 @@ import (
 // NewClient creates a new Redis client and verifies the connection.
 func NewClient(cfg config.RedisConfig) (*goredis.Client, error) {
 	rdb := goredis.NewClient(&goredis.Options{
-		Addr:     cfg.Addr,
-		Password: cfg.Password,
-		DB:       cfg.DB,
-		PoolSize: 100,
+		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		Username:     cfg.Username,
+		Password:     cfg.Password,
+		DB:           cfg.DB,
+		PoolSize:     cfg.PoolSize,
+		MinIdleConns: cfg.MinIdleConns,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

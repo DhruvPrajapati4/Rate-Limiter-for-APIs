@@ -22,7 +22,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to redis: %v", err)
 	}
-	defer rdb.Close()
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			log.Fatalf("failed to close redis connection: %v", err)
+		}
+	}()
 
 	mt := throttle.NewMultiTier(cfg.RateLimit, rdb)
 
@@ -32,6 +36,23 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+
+	// Sample APIs for testing rate limiter
+	api := r.Group("/api/:userId")
+	{
+		api.GET("/alpha", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"message": "API-ALPHA response", "user": c.Param("userId")})
+		})
+		api.POST("/beta", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"message": "API-BETA response", "user": c.Param("userId")})
+		})
+		api.PUT("/gamma", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"message": "API-GAMMA response", "user": c.Param("userId")})
+		})
+		api.DELETE("/delta", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"message": "API-DELTA response", "user": c.Param("userId")})
+		})
+	}
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("starting rate limiter server on %s (algorithm: %s)", addr, cfg.RateLimit.Algorithm)

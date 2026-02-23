@@ -20,9 +20,13 @@ type (
 	}
 
 	RedisConfig struct {
-		Addr     string `yaml:"addr"`
-		Password string `yaml:"password"`
-		DB       int    `yaml:"db"`
+		Host         string `yaml:"host"`
+		Port         int    `yaml:"port"`
+		DB           int    `yaml:"db"`
+		Password     string `yaml:"password"`
+		Username     string `yaml:"username"`
+		PoolSize     int    `yaml:"poolSize"`
+		MinIdleConns int    `yaml:"minIdleConns"`
 	}
 
 	RateLimitConfig struct {
@@ -55,9 +59,9 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config file: %w", err)
 	}
 
-	// Allow environment variable overrides
-	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
-		cfg.Redis.Addr = addr
+	password := os.Getenv("REDIS_PASSWORD")
+	if password != "" {
+		cfg.Redis.Password = password
 	}
 
 	return &cfg, nil
