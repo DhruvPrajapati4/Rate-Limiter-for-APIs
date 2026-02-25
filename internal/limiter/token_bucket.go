@@ -25,8 +25,12 @@ func NewTokenBucket(cfg config.TierDetail, rdb *redis.Client) *TokenBucket {
 	if burstSize == 0 {
 		burstSize = cfg.Limit
 	}
-	refillRate := float64(cfg.RefillRate)
-	if cfg.RefillRate == 0 {
+
+	// Convert refill rate from "per window" to "per second" for the Lua script
+	var refillRate float64
+	if cfg.RefillRate > 0 {
+		refillRate = float64(cfg.RefillRate) / cfg.Window.Seconds()
+	} else {
 		refillRate = float64(cfg.Limit) / cfg.Window.Seconds()
 	}
 
@@ -50,6 +54,7 @@ func (tb *TokenBucket) Allow(ctx context.Context, key string) (Result, error) {
 		tb.refillRate,
 		now,
 		ttl,
+		tb.limit,
 	).Int64Slice()
 	if err != nil {
 		return Result{}, fmt.Errorf("token bucket script: %w", err)

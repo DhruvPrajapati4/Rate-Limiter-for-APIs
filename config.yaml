@@ -10,7 +10,7 @@ redis:
   username: redisuser
 
 rate_limit:
-  algorithm: "token_bucket" # or "sliding_window"
+  algorithm: "sliding_window" # or "token_bucket"
   tiers:
     api_specific:
       limit: 100

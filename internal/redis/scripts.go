@@ -4,10 +4,11 @@ import "github.com/redis/go-redis/v9"
 
 // TokenBucketScript is a Lua script that atomically checks and updates a token bucket.
 // KEYS[1]: the bucket key
-// ARGV[1]: burst size (max tokens)
+// ARGV[1]: burst size (max tokens after refill)
 // ARGV[2]: refill rate (tokens per second)
 // ARGV[3]: current time (unix seconds, float)
 // ARGV[4]: TTL in seconds
+// ARGV[5]: initial token count (limit)
 // Returns: {allowed (0/1), remaining tokens}
 var TokenBucketScript = redis.NewScript(`
 local key = KEYS[1]
@@ -15,13 +16,14 @@ local burst = tonumber(ARGV[1])
 local rate = tonumber(ARGV[2])
 local now = tonumber(ARGV[3])
 local ttl = tonumber(ARGV[4])
+local initial = tonumber(ARGV[5])
 
 local data = redis.call('HMGET', key, 'tokens', 'last_refill')
 local tokens = tonumber(data[1])
 local last_refill = tonumber(data[2])
 
 if tokens == nil then
-    tokens = burst
+    tokens = initial
     last_refill = now
 end
 

@@ -28,6 +28,17 @@ func main() {
 		}
 	}()
 
+	log.Printf("config loaded: algorithm=%s", cfg.RateLimit.Algorithm)
+	log.Printf("  api_specific: limit=%d, window=%s, burst=%d, refill=%d",
+		cfg.RateLimit.Tiers.APISpecific.Limit, cfg.RateLimit.Tiers.APISpecific.Window,
+		cfg.RateLimit.Tiers.APISpecific.BurstSize, cfg.RateLimit.Tiers.APISpecific.RefillRate)
+	log.Printf("  global_user:  limit=%d, window=%s, burst=%d, refill=%d",
+		cfg.RateLimit.Tiers.GlobalUser.Limit, cfg.RateLimit.Tiers.GlobalUser.Window,
+		cfg.RateLimit.Tiers.GlobalUser.BurstSize, cfg.RateLimit.Tiers.GlobalUser.RefillRate)
+	log.Printf("  global_api:   limit=%d, window=%s, burst=%d, refill=%d",
+		cfg.RateLimit.Tiers.GlobalAPI.Limit, cfg.RateLimit.Tiers.GlobalAPI.Window,
+		cfg.RateLimit.Tiers.GlobalAPI.BurstSize, cfg.RateLimit.Tiers.GlobalAPI.RefillRate)
+
 	mt := throttle.NewMultiTier(cfg.RateLimit, rdb)
 
 	r := gin.Default()
