@@ -12,7 +12,7 @@ import (
 
 // TokenBucket implements the token bucket rate limiting algorithm backed by Redis.
 type TokenBucket struct {
-	rdb        *redis.Client
+	rdb        redis.Scripter
 	burstSize  int
 	refillRate float64 // tokens per second
 	window     time.Duration
@@ -20,7 +20,7 @@ type TokenBucket struct {
 }
 
 // NewTokenBucket creates a new token bucket limiter.
-func NewTokenBucket(cfg config.TierDetail, rdb *redis.Client) *TokenBucket {
+func NewTokenBucket(cfg config.TierDetail, rdb redis.Scripter) *TokenBucket {
 	burstSize := cfg.BurstSize
 	if burstSize == 0 {
 		burstSize = cfg.Limit
@@ -49,7 +49,7 @@ func (tb *TokenBucket) Allow(ctx context.Context, key string) (Result, error) {
 	ttl := int(tb.window.Seconds()) * 2 // TTL is 2x window for safety
 
 	vals, err := redisscripts.TokenBucketScript.Run(ctx, tb.rdb,
-		[]string{fmt.Sprintf("tb:%s", key)},
+		[]string{"tb:" + key},
 		tb.burstSize,
 		tb.refillRate,
 		now,

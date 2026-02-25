@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -21,9 +22,10 @@ func RateLimit(throttler *throttle.MultiTier) gin.HandlerFunc {
 
 		result, err := throttler.Allow(c.Request.Context(), userID, apiName)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-				"error": "rate limiter error",
-			})
+			// Fail-open: allow the request through but log the error.
+			// This prevents a Redis outage from causing a full service outage.
+			log.Printf("rate limiter error (fail-open): %v", err)
+			c.Next()
 			return
 		}
 

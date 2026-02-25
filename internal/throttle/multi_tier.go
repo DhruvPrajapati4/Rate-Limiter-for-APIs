@@ -2,7 +2,7 @@ package throttle
 
 import (
 	"context"
-	"fmt"
+	"sync"
 
 	"github.com/DhruvPrajapati4/rate-limiter/internal/config"
 	"github.com/DhruvPrajapati4/rate-limiter/internal/limiter"
@@ -11,16 +11,15 @@ import (
 
 type (
 	// MultiTier composes three rate limiters (API-specific, global user, global API)
-	// and checks all tiers concurrently using goroutines and channels.
+	// and checks all tiers concurrently using goroutines.
+	// The most restrictive result is returned. If any tier denies, the request is denied.
 	MultiTier struct {
 		apiLimiter    limiter.Limiter
 		userLimiter   limiter.Limiter
 		globalLimiter limiter.Limiter
 	}
 
-	// tierResult holds the outcome of a single tier check.
 	tierResult struct {
-		tier   string
 		result limiter.Result
 		err    error
 	}
@@ -35,48 +34,57 @@ func NewMultiTier(cfg config.RateLimitConfig, rdb *redis.Client) *MultiTier {
 	}
 }
 
-// Allow checks all three tiers concurrently and returns the most restrictive result.
-// If any tier denies the request, the overall result is denied.
+// Allow checks all three tiers concurrently using goroutines and returns the
+// most restrictive result. If any tier denies, the request is denied.
+//
+// Note: Because all tiers are evaluated in parallel, tokens are consumed from
+// all tiers even if one denies (phantom consumption). This is an acceptable
+// trade-off for lower latency — tokens refill naturally, and denial only
+// occurs when the user is already at or near their limit.
 func (m *MultiTier) Allow(ctx context.Context, userID, apiName string) (limiter.Result, error) {
-	ch := make(chan tierResult, 3)
+	type tierCheck struct {
+		limiter limiter.Limiter
+		key     string
+	}
 
-	// Launch all three tier checks concurrently
-	go func() {
-		r, err := m.apiLimiter.Allow(ctx, fmt.Sprintf("api:%s:user:%s", apiName, userID))
-		ch <- tierResult{"api_specific", r, err}
-	}()
-	go func() {
-		r, err := m.userLimiter.Allow(ctx, fmt.Sprintf("user:%s", userID))
-		ch <- tierResult{"global_user", r, err}
-	}()
-	go func() {
-		r, err := m.globalLimiter.Allow(ctx, fmt.Sprintf("global_api:%s", apiName))
-		ch <- tierResult{"global_api", r, err}
-	}()
+	checks := []tierCheck{
+		{m.apiLimiter, "api:" + apiName + ":user:" + userID},
+		{m.userLimiter, "user:" + userID},
+		{m.globalLimiter, "global_api:" + apiName},
+	}
 
-	// Collect results - return the most restrictive
-	var final limiter.Result
+	results := make([]tierResult, len(checks))
+	var wg sync.WaitGroup
+	wg.Add(len(checks))
+
+	for i, tc := range checks {
+		go func(idx int, l limiter.Limiter, key string) {
+			defer wg.Done()
+			r, err := l.Allow(ctx, key)
+			results[idx] = tierResult{result: r, err: err}
+		}(i, tc.limiter, tc.key)
+	}
+
+	wg.Wait()
+
+	// Collect results: return first error, find most restrictive
+	var mostRestrictive limiter.Result
 	first := true
 
-	for range 3 {
-		tr := <-ch
+	for _, tr := range results {
 		if tr.err != nil {
-			return limiter.Result{}, fmt.Errorf("tier %s: %w", tr.tier, tr.err)
+			return limiter.Result{}, tr.err
 		}
+
 		if first {
-			final = tr.result
+			mostRestrictive = tr.result
 			first = false
-			continue
-		}
-		if !tr.result.Allowed {
-			// Any denied tier takes priority
-			final = tr.result
-			final.Allowed = false
-		} else if final.Allowed && tr.result.Remaining < final.Remaining {
-			// Among allowed results, track the one with fewest remaining
-			final = tr.result
+		} else if !tr.result.Allowed {
+			mostRestrictive = tr.result
+		} else if mostRestrictive.Allowed && tr.result.Remaining < mostRestrictive.Remaining {
+			mostRestrictive = tr.result
 		}
 	}
 
-	return final, nil
+	return mostRestrictive, nil
 }

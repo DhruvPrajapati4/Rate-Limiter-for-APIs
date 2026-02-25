@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/DhruvPrajapati4/rate-limiter/internal/config"
@@ -13,13 +14,13 @@ import (
 
 // SlidingWindow implements the sliding window counter rate limiting algorithm backed by Redis.
 type SlidingWindow struct {
-	rdb    *redis.Client
+	rdb    redis.Scripter
 	limit  int
 	window time.Duration
 }
 
 // NewSlidingWindow creates a new sliding window counter limiter.
-func NewSlidingWindow(cfg config.TierDetail, rdb *redis.Client) *SlidingWindow {
+func NewSlidingWindow(cfg config.TierDetail, rdb redis.Scripter) *SlidingWindow {
 	return &SlidingWindow{
 		rdb:    rdb,
 		limit:  cfg.Limit,
@@ -35,8 +36,8 @@ func (sw *SlidingWindow) Allow(ctx context.Context, key string) (Result, error) 
 
 	// Calculate current and previous window keys
 	currWindow := int64(math.Floor(now / windowSecs))
-	currKey := fmt.Sprintf("sw:%s:%d", key, currWindow)
-	prevKey := fmt.Sprintf("sw:%s:%d", key, currWindow-1)
+	currKey := "sw:" + key + ":" + strconv.FormatInt(currWindow, 10)
+	prevKey := "sw:" + key + ":" + strconv.FormatInt(currWindow-1, 10)
 
 	vals, err := redisscripts.SlidingWindowScript.Run(ctx, sw.rdb,
 		[]string{currKey, prevKey},
@@ -52,16 +53,16 @@ func (sw *SlidingWindow) Allow(ctx context.Context, key string) (Result, error) 
 	allowed := vals[0] == 1
 	remaining := int(vals[1])
 
+	resetSecs := float64(currWindow+1) * windowSecs
 	result := Result{
 		Allowed:   allowed,
 		Remaining: remaining,
 		Limit:     sw.limit,
-		ResetAt:   time.Unix(int64((currWindow+1)*int64(windowSecs)), 0),
+		ResetAt:   time.Unix(0, int64(resetSecs*1e9)),
 	}
 
 	if !allowed {
-		resetTime := float64((currWindow + 1)) * windowSecs
-		result.RetryAfter = time.Duration((resetTime - now) * float64(time.Second))
+		result.RetryAfter = time.Duration((resetSecs - now) * float64(time.Second))
 	}
 
 	return result, nil

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,7 +14,10 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load("config.yaml")
+	configPath := flag.String("config", "config.yaml", "path to config file")
+	flag.Parse()
+
+	cfg, err := config.Load(*configPath)
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
@@ -24,7 +28,7 @@ func main() {
 	}
 	defer func() {
 		if err := rdb.Close(); err != nil {
-			log.Fatalf("failed to close redis connection: %v", err)
+			log.Printf("warning: failed to close redis: %v", err)
 		}
 	}()
 

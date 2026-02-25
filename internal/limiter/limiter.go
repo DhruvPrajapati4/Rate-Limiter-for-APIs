@@ -25,7 +25,8 @@ type (
 )
 
 // New creates a Limiter based on the configured algorithm.
-func New(algorithm string, cfg config.TierDetail, rdb *redis.Client) Limiter {
+// Accepts redis.Scripter to allow injection of mocks for testing.
+func New(algorithm string, cfg config.TierDetail, rdb redis.Scripter) Limiter {
 	switch algorithm {
 	case "sliding_window": // TODO: add constants
 		return NewSlidingWindow(cfg, rdb)

@@ -59,9 +59,17 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config file: %w", err)
 	}
 
-	password := os.Getenv("REDIS_PASSWORD")
-	if password != "" {
+	if username := os.Getenv("REDIS_USERNAME"); username != "" {
+		cfg.Redis.Username = username
+	}
+	if password := os.Getenv("REDIS_PASSWORD"); password != "" {
 		cfg.Redis.Password = password
+	}
+	if host := os.Getenv("REDIS_HOST"); host != "" {
+		cfg.Redis.Host = host
+	}
+	if port := os.Getenv("REDIS_PORT"); port != "" {
+		fmt.Sscanf(port, "%d", &cfg.Redis.Port)
 	}
 
 	return &cfg, nil
