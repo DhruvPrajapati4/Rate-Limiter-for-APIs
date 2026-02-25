@@ -14,6 +14,7 @@ A production-grade API rate limiter built in **Go** using goroutines and channel
 - [API Endpoints](#api-endpoints)
 - [Rate Limiting Algorithms](#rate-limiting-algorithms)
 - [Multi-Tier Throttling](#multi-tier-throttling)
+- [Benchmarks](#benchmarks)
 - [Testing](#testing)
 - [Available Make Commands](#available-make-commands)
 
@@ -229,6 +230,33 @@ Every request is checked against three tiers **concurrently** using goroutines a
 | Global API | `global_api:{name}` | Limit total requests to an API across all users |
 
 If **any** tier denies the request, the response is HTTP 429. The most restrictive tier's limits are returned in the headers.
+
+## Benchmarks
+
+Benchmarked on a single machine (Apple Silicon) with Redis 7 local, pool size 200, using Apache Bench (`ab`). All 3 tiers evaluated concurrently per request via goroutines.
+
+### Token Bucket
+
+| Concurrency | Requests | Throughput (req/s) | p50 (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|---|
+| 50 | 10,000 | **11,816** | 4 | 7 | 11 |
+| 100 | 10,000 | **13,509** | 7 | 10 | 12 |
+| 500 | 50,000 | **16,368** | 29 | 34 | 70 |
+| 750 | 50,000 | **15,714** | 46 | 53 | 88 |
+
+### Sliding Window Counter
+
+| Concurrency | Requests | Throughput (req/s) | p50 (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|---|
+| 50 | 10,000 | **14,115** | 3 | 5 | 8 |
+| 100 | 10,000 | **13,378** | 7 | 11 | 17 |
+| 500 | 50,000 | **17,256** | 28 | 34 | 56 |
+| 750 | 50,000 | **16,771** | 43 | 51 | 85 |
+
+- **Peak throughput: ~17.2K req/s** (sliding window, 500 concurrent connections)
+- **0% error rate** across all runs (0 failed requests)
+- **p99 latency under 88ms** at peak throughput for both algorithms
+- Throughput scales with Redis connection pool size (benchmarked with poolSize=200)
 
 ## Testing
 
