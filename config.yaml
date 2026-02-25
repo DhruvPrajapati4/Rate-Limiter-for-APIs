@@ -1,0 +1,29 @@
+server:
+  port: 8090
+
+redis:
+  host: localhost
+  port: 6379
+  db: 1
+  poolSize: 10
+  minIdleConns: 5
+  username: redisuser
+
+rate_limit:
+  algorithm: "sliding_window" # or "token_bucket"
+  tiers:
+    api_specific:
+      limit: 100
+      window: 60s
+      burst_size: 120
+      refill_rate: 100
+    global_user:
+      limit: 500
+      window: 60s
+      burst_size: 600
+      refill_rate: 500
+    global_api:
+      limit: 10000
+      window: 1s
+      burst_size: 12000
+      refill_rate: 10000
